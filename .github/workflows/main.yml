@@ -44,7 +44,6 @@ jobs:
     needs: create-release
     permissions:
       contents: write
-    runs-on: ${{ matrix.platform }}
     strategy:
       matrix:
         build: [linux, macos, windows]
@@ -65,6 +64,7 @@ jobs:
             target: x86_64-pc-windows-msvc
             archive-name: athene-bot-windows.7z
       fail-fast: false
+    runs-on: ${{ matrix.platform }}
 
     steps:
       - name: Checkout repository
