@@ -1,0 +1,22 @@
+[package]
+name = "athene_bot"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+base64 = "0.22.1"
+chrono = "0.4.38"
+futures = "0.3.30"
+percent-encoding = "2.3.1"
+rand = "0.8.5"
+reqwest = "0.12.5"
+rsa = "0.9.6"
+serde =  { version = "1.0.204", features = ["derive"] }
+serde_json = "1.0.120"
+serde_urlencoded = "0.7.1"
+sha2 = "0.10.8"
+tokio = { version = "1.38.1", features = ["full"] }
+tokio-cron-scheduler = "0.10.2"
+urlencoding = "2.1.3"
