@@ -1,14 +1,14 @@
 name: "publish"
 
-on: push
-  # pull_request:
-  #   types:
-  #     - opened
-  #   branches:
-  #     - 'main'
-  #     - 'releases/**'
-    # paths:
-    #   - '**.rs'
+on:
+  pull_request:
+    types:
+      - opened
+    branches:
+      - 'main'
+      - 'releases/**'
+    paths:
+      - '**.rs'
 
 jobs:
   create-release:
