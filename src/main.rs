@@ -1,5 +1,7 @@
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
+use colog;
+use log::info;
 use reqwest::header::{HeaderMap, HeaderValue, COOKIE};
 use reqwest::{StatusCode, Url};
 use serde::{Deserialize, Serialize};
@@ -44,7 +46,7 @@ fn concat_str(s: i64, d: i64) -> String {
     format!("{s}-{ts}-{d}")
 }
 
-async fn get_tap_earn(cookie: &str) -> Result<TapData, Box<dyn std::error::Error>> {
+async fn get_tap_earn(cookie: &str, name: &str) -> Result<TapData, Box<dyn std::error::Error>> {
     let client = reqwest::Client::new();
     // let client = reqwest::Client::builder().proxy(reqwest::Proxy::http("http://127.0.0.1:13453")?).build()?;
     let mut headers = HeaderMap::new();
@@ -79,11 +81,11 @@ async fn get_tap_earn(cookie: &str) -> Result<TapData, Box<dyn std::error::Error
     //     if response.status()
     // println!("{:?}", response.text().await?);
     // let d: serde_json::Value = serde_json::from_str(response.text().await?.as_str()).unwrap();
-    println!("get_tap_earn_error: {:?}", status);
+    utils::format_error(name, &format!("get_tap_earn_error: {:?}", status));
     Err(Box::new(AthenaErr::TapErr))
 }
 
-async fn post_conver_gem(re: String, cookie: &str) -> Result<(), Box<dyn std::error::Error>> {
+async fn post_conver_gem(re: String, cookie: &str, name: &str) -> Result<(), Box<dyn std::error::Error>> {
     let client = reqwest::Client::new();
     let mut headers = HeaderMap::new();
     utils::init_headers(&mut headers);
@@ -104,13 +106,13 @@ async fn post_conver_gem(re: String, cookie: &str) -> Result<(), Box<dyn std::er
 
     // let response_text = response.te.await?;
     // println!("{:?}", response_text);
-    println!("post-convert-gem: {:?}", response.status());
+    utils::format_println(name, &format!("post-convert-gem: {:?}", response.status()));
     let txt = response.text().await?;
-    println!("post-convert-gem-result: {:?}", txt);
+    utils::format_println(name, &format!("post-convert-gem-result: {:?}", txt));
     Ok(())
 }
 
-async fn get_mining_time(cookie: &str) -> Result<i64, Box<dyn std::error::Error>> {
+async fn get_mining_time(cookie: &str, name: &str) -> Result<i64, Box<dyn std::error::Error>> {
     let client = reqwest::Client::new();
     let mut headers = HeaderMap::new();
     utils::init_headers(&mut headers);
@@ -127,19 +129,19 @@ async fn get_mining_time(cookie: &str) -> Result<i64, Box<dyn std::error::Error>
 
     // let response_text = response.te.await?;
     // println!("{:?}", response_text);
-    println!("get_mining: {:?}", response.status());
     let status = response.status();
+    utils::format_println(name, &format!("get_mining: {:?}", status));
     if status == StatusCode::OK {
         let val: serde_json::Value = serde_json::from_str(&response.text().await?).unwrap();
         return Ok(val["data"]["remainTimeNextClaim"].as_i64().unwrap());
     }
 
-    println!("get_mining_time_error: {:?}", status);
+    utils::format_error(name, "get_mining_time_error");
     Err(Box::new(AthenaErr::GetMiningErr))
 }
 
 async fn post_claim_gem(cookie: &str, name: &str) -> Result<(), Box<dyn std::error::Error>> {
-    let rest_mining_time = get_mining_time(cookie).await?;
+    let rest_mining_time = get_mining_time(cookie, name).await?;
     utils::format_println(name, &format!("get_mining_time: {}", rest_mining_time));
 
     if rest_mining_time <= 0i64 {
@@ -200,7 +202,7 @@ async fn post_check_in(cookie: &str, name: &str) -> Result<(), Box<dyn std::erro
 }
 
 async fn post_convert_gem(cookie: &str, name: &str) -> Result<(), Box<dyn std::error::Error>> {
-    let tap_data = get_tap_earn(cookie).await?;
+    let tap_data = get_tap_earn(cookie, name).await?;
     let total_tap = (((utils::get_current_timestamp() - tap_data.number_tap) / 100) | 0) - 100;
 
     utils::format_println(name, &format!("now tap count: {}", total_tap));
@@ -213,7 +215,7 @@ async fn post_convert_gem(cookie: &str, name: &str) -> Result<(), Box<dyn std::e
             &format!("{}, gold exchange: {}", utils::now(), total_tap),
         );
         let re = utils::rsa_encrypt(&txt);
-        post_conver_gem(re, cookie).await?;
+        post_conver_gem(re, cookie, name).await?;
     }
 
     Ok(())
@@ -303,11 +305,13 @@ fn write_config_json(file_path: &str, data: &HashMap<String, User>) {
 
 #[tokio::main]
 async fn main() -> Result<(), JobSchedulerError> {
+    colog::init();
+
     let sched = JobScheduler::new().await?;
 
     // read user token from file
     let file_path = path::PathBuf::from(std::env::current_dir().unwrap()).join("user.json");
-    println!("file_path: {:?}", file_path);
+    info!("file_path: {:?}", file_path);
     let users = read_config_json(file_path.to_str().unwrap());
     let mut copy_users: HashMap<String, User> = HashMap::new();
 
@@ -330,7 +334,7 @@ async fn main() -> Result<(), JobSchedulerError> {
         let token1 = token.clone();
         let name2 = name.clone();
         let token2 = token.clone();
-        println!("name: {}, start", &name);
+        info!("name: {}, start", &name);
 
         utils::format_println(&name, "post_check_in_start");
         let _ = post_check_in(&token, &name).await.map_err(|err| {
@@ -351,7 +355,7 @@ async fn main() -> Result<(), JobSchedulerError> {
                         sleep(Duration::from_secs(1)).await;
                         utils::format_println(&name, "post_check_in_start");
                         let _ = post_check_in(&token, &name).await.map_err(|err| {
-                            utils::format_println(
+                            utils::format_error(
                                 &name,
                                 &format!("post_check_in_error: {:?}", err),
                             );
@@ -372,7 +376,7 @@ async fn main() -> Result<(), JobSchedulerError> {
                         sleep(Duration::from_secs(3)).await;
                         utils::format_println(&name, "post_claim_gem_start");
                         let _ = post_claim_gem(&token, &name).await.map_err(|err| {
-                            utils::format_println(
+                            utils::format_error(
                                 &name,
                                 &format!("post_claim_gem_error: {:?}", err),
                             );
@@ -393,7 +397,7 @@ async fn main() -> Result<(), JobSchedulerError> {
                         sleep(Duration::from_secs(5)).await;
                         utils::format_println(&name, "post_convert_gem_start");
                         let _ = post_convert_gem(&token, &name).await.map_err(|err| {
-                            utils::format_println(
+                            utils::format_error(
                                 &name,
                                 &format!("post_convert_gem_error: {:?}", err),
                             );

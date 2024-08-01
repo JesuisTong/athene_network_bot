@@ -1,6 +1,7 @@
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
 use chrono::Local;
+use log::{error, info};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use rsa::Oaep;
@@ -12,7 +13,7 @@ use reqwest::header::{
     REFERRER_POLICY, USER_AGENT,
 };
 
-// 加密算法
+// encrypt algorithm
 pub fn rsa_encrypt(t: &str) -> String {
     let key = "-----BEGIN PUBLIC KEY-----
 MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwmkourU0WsNzc0mcb6a7
@@ -46,7 +47,10 @@ pub fn get_current_timestamp() -> i64 {
 }
 
 pub fn format_println(name: &str, msg: &str) {
-    println!("[{}] [{}]: {}", now(), name, msg);
+    info!("[{}] [{}]: {}", now(), name, msg);
+}
+pub fn format_error(name: &str, msg: &str) {
+    error!("[{}] [{}]: {}", now(), name, msg);
 }
 
 pub fn init_headers(h: &mut HeaderMap) -> &mut HeaderMap {
