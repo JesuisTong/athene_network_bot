@@ -85,7 +85,11 @@ async fn get_tap_earn(cookie: &str, name: &str) -> Result<TapData, Box<dyn std::
     Err(Box::new(AthenaErr::TapErr))
 }
 
-async fn post_conver_gem(re: String, cookie: &str, name: &str) -> Result<(), Box<dyn std::error::Error>> {
+async fn post_conver_gem(
+    re: String,
+    cookie: &str,
+    name: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
     let client = reqwest::Client::new();
     let mut headers = HeaderMap::new();
     utils::init_headers(&mut headers);
@@ -221,6 +225,174 @@ async fn post_convert_gem(cookie: &str, name: &str) -> Result<(), Box<dyn std::e
     Ok(())
 }
 
+/** premium daily check in */
+async fn claim_premium_pick(cookie: &str, name: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let client = reqwest::Client::new();
+    let mut headers = HeaderMap::new();
+    utils::init_headers(&mut headers);
+    headers.insert(
+        COOKIE,
+        HeaderValue::from_str(&format!("token={}", cookie)).unwrap(),
+    );
+
+    let response = client
+        .get("https://miniapp.athene.network/api/get-premium-pick/?lang=en")
+        .headers(headers.clone())
+        .send()
+        .await?;
+
+    let status = response.status();
+    if status == StatusCode::OK {
+        let result: serde_json::Value = serde_json::from_str(&response.text().await?).unwrap();
+        // return Ok(val["data"]["remainTimeNextClaim"].as_i64().unwrap());
+        utils::format_println(
+            &name,
+            &format!(
+                "get-premium-pick: totalReward: {}",
+                result["data"]["totalReward"].as_i64().unwrap()
+            ),
+        );
+        for item in result["data"]["packages"].as_array().unwrap().iter() {
+            if item["canClaim"].as_bool().unwrap() {
+                let name = item["name"].as_str().unwrap();
+                let response = client
+                    .post("https://miniapp.athene.network/api/post-premium-pick/?lang=en")
+                    .headers(headers.clone())
+                    .body(
+                        json!({
+                            "packageName": name,
+                        })
+                        .to_string(),
+                    )
+                    .send()
+                    .await
+                    .unwrap();
+                utils::format_println(
+                    &name,
+                    &format!("post-premium-pick: {}:{:?}", name, response.status()),
+                );
+                sleep(Duration::from_secs(1)).await;
+            }
+        }
+    }
+    Ok(())
+}
+
+/** daily quest */
+async fn claim_daily_quest(cookie: &str, name: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let client = reqwest::Client::new();
+    let mut headers = HeaderMap::new();
+    utils::init_headers(&mut headers);
+    headers.insert(
+        COOKIE,
+        HeaderValue::from_str(&format!("token={}", cookie)).unwrap(),
+    );
+
+    let response = client
+        .get("https://miniapp.athene.network/api/get-list-quest/?limit=50&offset=1&lang=en")
+        .headers(headers.clone())
+        .send()
+        .await?;
+
+    let status = response.status();
+    if status == StatusCode::OK {
+        let result: serde_json::Value = serde_json::from_str(&response.text().await?).unwrap();
+
+        for item in result["data"]["daily"].as_array().unwrap().iter() {
+            if item["status"].as_str().unwrap() == "claimable" {
+                let quest = item["id"].as_i64().unwrap();
+                let response = client
+                    .post("https://miniapp.athene.network/api/post-quest-reward/?lang=en")
+                    .headers(headers.clone())
+                    .body(
+                        json!({
+                            "quest": quest,
+                        })
+                        .to_string(),
+                    )
+                    .send()
+                    .await
+                    .unwrap();
+                utils::format_println(
+                    &name,
+                    &format!("post-quest-reward: {:?}", response.status()),
+                );
+                sleep(Duration::from_secs(3)).await;
+            }
+        }
+
+        for item in result["data"]["event"].as_array().unwrap().iter() {
+            if item["status"].as_str().unwrap() == "claimable" {
+                let quest = item["id"].as_i64().unwrap();
+                let response = client
+                    .post("https://miniapp.athene.network/api/post-quest-reward/?lang=en")
+                    .headers(headers.clone())
+                    .body(
+                        json!({
+                            "quest": quest,
+                        })
+                        .to_string(),
+                    )
+                    .send()
+                    .await
+                    .unwrap();
+                utils::format_println(
+                    &name,
+                    &format!("post-quest-reward: {:?}", response.status()),
+                );
+                sleep(Duration::from_secs(3)).await;
+            }
+        }
+
+        for item in result["data"]["top"].as_array().unwrap().iter() {
+            if item["status"].as_str().unwrap() == "claimable" {
+                let quest = item["id"].as_i64().unwrap();
+                let response = client
+                    .post("https://miniapp.athene.network/api/post-quest-reward/?lang=en")
+                    .headers(headers.clone())
+                    .body(
+                        json!({
+                            "quest": quest,
+                        })
+                        .to_string(),
+                    )
+                    .send()
+                    .await
+                    .unwrap();
+                utils::format_println(
+                    &name,
+                    &format!("post-quest-reward: {:?}", response.status()),
+                );
+                sleep(Duration::from_secs(3)).await;
+            }
+        }
+
+        for item in result["data"]["weekly"].as_array().unwrap().iter() {
+            if item["status"].as_str().unwrap() == "claimable" {
+                let quest = item["id"].as_i64().unwrap();
+                let response = client
+                    .post("https://miniapp.athene.network/api/post-quest-reward/?lang=en")
+                    .headers(headers.clone())
+                    .body(
+                        json!({
+                            "quest": quest,
+                        })
+                        .to_string(),
+                    )
+                    .send()
+                    .await
+                    .unwrap();
+                utils::format_println(
+                    &name,
+                    &format!("post-quest-reward: {:?}", response.status()),
+                );
+                sleep(Duration::from_secs(3)).await;
+            }
+        }
+    }
+    Ok(())
+}
+
 #[warn(dead_code)]
 async fn login(tg_url: &str, invite_code: &str) -> Result<String, Box<dyn std::error::Error>> {
     // let
@@ -308,7 +480,7 @@ async fn main() -> Result<(), JobSchedulerError> {
     colog::init();
 
     let sched = JobScheduler::new().await?;
-
+    info!("Welcom to Athena Network Bot,\nreferral link: https://t.me/athene_official_bot?start=inviteCode_38f721dc95aa");
     // read user token from file
     let file_path = path::PathBuf::from(std::env::current_dir().unwrap()).join("user.json");
     info!("file_path: {:?}", file_path);
@@ -354,12 +526,15 @@ async fn main() -> Result<(), JobSchedulerError> {
                     Box::pin(async move {
                         sleep(Duration::from_secs(1)).await;
                         utils::format_println(&name, "post_check_in_start");
-                        let _ = post_check_in(&token, &name).await.map_err(|err| {
-                            utils::format_error(
-                                &name,
-                                &format!("post_check_in_error: {:?}", err),
-                            );
-                        });
+                        post_check_in(&token, &name)
+                            .await
+                            .map_err(|err| {
+                                utils::format_error(
+                                    &name,
+                                    &format!("post_check_in_error: {:?}", err),
+                                );
+                            })
+                            .ok();
                     })
                 })
                 .unwrap(),
@@ -375,12 +550,33 @@ async fn main() -> Result<(), JobSchedulerError> {
                     Box::pin(async move {
                         sleep(Duration::from_secs(3)).await;
                         utils::format_println(&name, "post_claim_gem_start");
-                        let _ = post_claim_gem(&token, &name).await.map_err(|err| {
-                            utils::format_error(
-                                &name,
-                                &format!("post_claim_gem_error: {:?}", err),
-                            );
-                        });
+                        post_claim_gem(&token, &name)
+                            .await
+                            .map_err(|err| {
+                                utils::format_error(
+                                    &name,
+                                    &format!("post_claim_gem_error: {:?}", err),
+                                );
+                            })
+                            .ok();
+                        claim_premium_pick(&token, &name)
+                            .await
+                            .map_err(|err| {
+                                utils::format_error(
+                                    &name,
+                                    &format!("claim_premium_pick_error: {:?}", err),
+                                );
+                            })
+                            .ok();
+                        claim_daily_quest(&token, &name)
+                            .await
+                            .map_err(|err| {
+                                utils::format_error(
+                                    &name,
+                                    &format!("claim_daily_quest_error: {:?}", err),
+                                );
+                            })
+                            .ok();
                     })
                 })
                 .unwrap(),
@@ -396,12 +592,15 @@ async fn main() -> Result<(), JobSchedulerError> {
                     Box::pin(async move {
                         sleep(Duration::from_secs(5)).await;
                         utils::format_println(&name, "post_convert_gem_start");
-                        let _ = post_convert_gem(&token, &name).await.map_err(|err| {
-                            utils::format_error(
-                                &name,
-                                &format!("post_convert_gem_error: {:?}", err),
-                            );
-                        });
+                        post_convert_gem(&token, &name)
+                            .await
+                            .map_err(|err| {
+                                utils::format_error(
+                                    &name,
+                                    &format!("post_convert_gem_error: {:?}", err),
+                                );
+                            })
+                            .ok();
                     })
                 })
                 .unwrap(),
