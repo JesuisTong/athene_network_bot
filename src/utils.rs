@@ -25,7 +25,7 @@ HkQhWA50hXFxmCnIJjw10YfZAFkMzaFKNVZpOmnTvZrmlQShsOLUci8q45kN1jsU
 pQIDAQAB
 -----END PUBLIC KEY-----";
 
-    let public_key = RsaPublicKey::from_public_key_pem(&key).unwrap();
+    let public_key = RsaPublicKey::from_public_key_pem(key).unwrap();
 
     let mut rng = rand::thread_rng();
     let padding = Oaep::new::<Sha256>();
