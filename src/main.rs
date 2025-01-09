@@ -1,16 +1,17 @@
 #![deny(clippy::all)]
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
+use colored::Colorize;
 use reqwest::header::{HeaderMap, HeaderValue, COOKIE};
 use reqwest::{Client, StatusCode, Url};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
+use std::fs;
 use std::io::Write;
 use std::sync::Arc;
 use std::time::Duration;
-use std::fs;
 use tokio::time::sleep;
 
 mod utils;
@@ -298,12 +299,46 @@ impl User {
         Ok(())
     }
 
-    async fn post_premium_pick(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    async fn get_premium_pick(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let client = self.request_with_token();
+        let name = self.name.as_ref().unwrap();
+
+        let response = client
+            .get("https://miniapp.athene.network/api/get-premium-pick/?lang=en")
+            .send()
+            .await?
+            .json::<serde_json::Value>()
+            .await?;
+        let need_claim = response["data"]["packages"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|x| x["canClaim"].as_bool().unwrap())
+            .map(|x| {
+                (
+                    x["packageName"].as_str().unwrap(),
+                    x["claimValue"].as_u64().unwrap(),
+                )
+            })
+            .collect::<Vec<(&str, u64)>>();
+
+        for (package_name, value) in need_claim {
+            utils::format_println(name, &format!("claim {}: {}", package_name, value));
+            self.post_premium_pick(package_name).await?;
+        }
+
+        Ok(())
+    }
+
+    async fn post_premium_pick(
+        &self,
+        package_name: &str,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let client = self.request_with_token();
         let name = self.name.as_ref().unwrap();
 
         let body = json!({
-            "packageName": "Bronze", // TODO: select package
+            "packageName": package_name,
         });
         let response = client
             .post("https://miniapp.athene.network/api/post-premium-pick/?lang=en")
@@ -344,7 +379,7 @@ impl User {
             let _ = futures::join!(
                 self.post_check_in(),
                 self.post_mystery_box_claim(),
-                self.post_premium_pick(),
+                self.get_premium_pick(),
                 self.post_quest_reward(),
             );
             sleep(Duration::from_secs(60 * 60 * 12)).await;
@@ -392,7 +427,13 @@ async fn main_loop(user: User) {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     colog::init();
+    log::info!(
+        r#"Welcome to Athene Network Bot!
+        Free your hands and start earn now!
 
+        Official website: {}"#,
+        "https://t.me/athene_official_bot?start=inviteCode_38f721dc95aa".cyan()
+    );
     // read user token from file
     let file_path = std::env::current_dir().unwrap().join("user.json");
     log::info!("file_path: {:?}", file_path);

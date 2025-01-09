@@ -19,6 +19,7 @@ A telegram mini GameFI project, you can earn **gem** \ **ATH token** by **gold**
 - [✔] Auto check-in daily.
 - [✔] Auto claim gem node every 12 hours.
 - [✔] Customize your invite code.
+- [✔] Auto claim package rewards.
 - [✔] low memory usage.
 
 ## Usage
